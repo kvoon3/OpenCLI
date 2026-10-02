@@ -361,12 +361,19 @@ function buildApplySearchFiltersJs(requestedFilters) {
         const requestedFilters = ${JSON.stringify(requestedFilters)};
         const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         const text = (element) => (element?.textContent || '').replace(/\\s+/g, '').trim();
+        // XHS renders each filter chip twice: the real element plus a ghost
+        // layer that keeps the same bounding box but is marked
+        // aria-hidden="true" with opacity ~1e-05. A rect-only visibility test
+        // accepted both, so every option matched twice and filtering aborted
+        // with the "ambiguous_option" layout error.
         const visible = (element) => {
           if (!element) return false;
+          if (element.getAttribute('aria-hidden') === 'true') return false;
           const rect = element.getBoundingClientRect();
           const style = getComputedStyle(element);
           return rect.width > 0 && rect.height > 0 &&
-            style.display !== 'none' && style.visibility !== 'hidden';
+            style.display !== 'none' && style.visibility !== 'hidden' &&
+            parseFloat(style.opacity || '1') > 0.01;
         };
         const visibleMatches = (root, selector) =>
           Array.from(root.querySelectorAll(selector)).filter(visible);
